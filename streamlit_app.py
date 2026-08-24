@@ -19,12 +19,40 @@ class RecipeSet(BaseModel):
 st.set_page_config(page_title="AIレシピ比較メーカー", page_icon="🍳")
 
 st.title("🍳 AIレシピ比較メーカー")
-st.write("料理名を入力すると、Geminiが特徴の異なる5つのレシピを作り、違いを比較します。")
+st.write("料理名と希望条件を入力すると、Geminiが特徴の異なる5つのレシピを作り、違いを比較します。")
 
 
 dish_name = st.text_input(
     "料理名を入力してください",
     placeholder="例：肉じゃが、親子丼、ミネストローネ",
+)
+
+st.subheader("今回の条件")
+st.caption("必要な項目だけ入力してください。空欄は「指定なし」として扱います。")
+
+avoid_ingredients = st.text_input(
+    "1. 使いたくない材料",
+    placeholder="例：玉ねぎ、砂糖、マヨネーズ",
+)
+
+must_ingredients = st.text_input(
+    "2. 必ず使いたい材料",
+    placeholder="例：牛肉、じゃがいも、昆布だし",
+)
+
+taste_preference = st.text_input(
+    "3. 味の好み",
+    placeholder="例：甘さ控えめ、さっぱり、濃いめ",
+)
+
+cooking_time = st.text_input(
+    "4. 調理時間",
+    placeholder="例：30分以内",
+)
+
+cooking_method = st.text_input(
+    "5. 調理法",
+    placeholder="例：鍋で煮る、フライパンだけ、電子レンジ不可",
 )
 
 
@@ -41,6 +69,19 @@ if st.button("5つのレシピを比較する", type="primary"):
 あなたは家庭料理に詳しい料理研究家です。
 「{dish_name}」について、特徴がはっきり異なるレシピを必ず5種類作ってください。
 
+今回の追加条件は以下です。
+・使いたくない材料：{avoid_ingredients if avoid_ingredients else "指定なし"}
+・必ず使いたい材料：{must_ingredients if must_ingredients else "指定なし"}
+・味の好み：{taste_preference if taste_preference else "指定なし"}
+・調理時間：{cooking_time if cooking_time else "指定なし"}
+・調理法：{cooking_method if cooking_method else "指定なし"}
+
+条件の扱いについて、以下を必ず守ってください。
+・「使いたくない材料」に指定されたものは、材料・調味料・だし・トッピングを含めて使用しないでください。
+・「必ず使いたい材料」に指定されたものは、原則として5種類すべてのレシピで使用してください。
+・味の好み、調理時間、調理法の指定がある場合は、5種類すべてでその条件を守ってください。
+・条件同士が矛盾する場合は、無理にレシピを作らず、できるだけ条件に近づけてください。
+
 5種類は、できるだけ次のように方向性を変えてください。
 1. 定番
 2. 甘め
@@ -48,7 +89,7 @@ if st.button("5つのレシピを比較する", type="primary"):
 4. 時短
 5. コク重視
 
-料理によって上の分類が不自然な場合は、その料理に合う別の5分類に置き換えて構いません。
+料理や今回の条件によって上の分類が不自然な場合は、その料理に合う別の5分類に置き換えて構いません。
 ただし、5種類の違いが明確に分かるようにしてください。
 
 各レシピには必ず以下を含めてください。
@@ -105,6 +146,13 @@ if st.button("5つのレシピを比較する", type="primary"):
 
         analysis_prompt = f"""
 次の「{dish_name}」の5つのレシピを比較してください。
+
+今回の条件：
+・使いたくない材料：{avoid_ingredients if avoid_ingredients else "指定なし"}
+・必ず使いたい材料：{must_ingredients if must_ingredients else "指定なし"}
+・味の好み：{taste_preference if taste_preference else "指定なし"}
+・調理時間：{cooking_time if cooking_time else "指定なし"}
+・調理法：{cooking_method if cooking_method else "指定なし"}
 
 以下の観点で、初心者にも分かる日本語で整理してください。
 ・主な材料の違い
