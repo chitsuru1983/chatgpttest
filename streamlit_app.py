@@ -3,9 +3,6 @@ from google import genai
 from pydantic import BaseModel
 
 
-# -------------------------
-# データの形を決める
-# -------------------------
 class Recipe(BaseModel):
     recipe_name: str
     feature: str
@@ -19,9 +16,6 @@ class RecipeSet(BaseModel):
     recipes: list[Recipe]
 
 
-# -------------------------
-# 画面設定
-# -------------------------
 st.set_page_config(page_title="AIレシピ比較メーカー", page_icon="🍳")
 
 st.title("🍳 AIレシピ比較メーカー")
@@ -74,11 +68,13 @@ if st.button("5つのレシピを比較する", type="primary"):
             recipe_response = client.interactions.create(
                 model="gemini-3.7-flash",
                 input=recipe_prompt,
-                response_format={
-                    "type": "text",
-                    "mime_type": "application/json",
-                    "schema": RecipeSet.model_json_schema(),
-                },
+                response_format=[
+                    {
+                        "type": "text",
+                        "mime_type": "application/json",
+                        "schema": RecipeSet.model_json_schema(),
+                    }
+                ],
             )
 
             recipe_set = RecipeSet.model_validate_json(recipe_response.output_text)
