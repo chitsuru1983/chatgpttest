@@ -1,6 +1,17 @@
+import re
+from io import BytesIO
+from xml.sax.saxutils import escape
+
 import streamlit as st
 from google import genai
 from pydantic import BaseModel
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 
 class Recipe(BaseModel):
@@ -30,6 +41,113 @@ BASE_PROMPT = """
 ・調味料の分量は具体的に書く
 ・初心者でも作れる手順にする
 """
+
+
+def clean_markdown(text: str) -> str:
+    text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+    text = re.sub(r"^#{1,6}\s*", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^[-*]\s+", "・", text, flags=re.MULTILINE)
+    return text.strip()
+
+
+def build_pdf(dish_name: str, recipe_set: RecipeSet, analysis_text: str, conditions: dict) -> bytes:
+    buffer = BytesIO()
+
+    pdfmetrics.registerFont(UnicodeCIDFont("HeiseiKakuGo-W5"))
+    font_name = "HeiseiKakuGo-W5"
+
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=16 * mm,
+        leftMargin=16 * mm,
+        topMargin=16 * mm,
+        bottomMargin=16 * mm,
+        title=f"AIレシピ比較メーカー - {dish_name}",
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "JapaneseTitle",
+        parent=styles["Title"],
+        fontName=font_name,
+        fontSize=18,
+        leading=25,
+        alignment=TA_CENTER,
+        spaceAfter=10,
+    )
+    heading_style = ParagraphStyle(
+        "JapaneseHeading",
+        parent=styles["Heading2"],
+        fontName=font_name,
+        fontSize=13,
+        leading=19,
+        spaceBefore=8,
+        spaceAfter=5,
+    )
+    body_style = ParagraphStyle(
+        "JapaneseBody",
+        parent=styles["BodyText"],
+        fontName=font_name,
+        fontSize=9.5,
+        leading=15,
+        spaceAfter=4,
+    )
+    small_style = ParagraphStyle(
+        "JapaneseSmall",
+        parent=body_style,
+        fontSize=8.5,
+        leading=13,
+    )
+
+    story = []
+    story.append(Paragraph("AIレシピ比較メーカー", title_style))
+    story.append(Paragraph(f"料理名：{escape(dish_name)}", heading_style))
+
+    story.append(Paragraph("今回の条件", heading_style))
+    for label, value in conditions.items():
+        shown = value.strip() if value and value.strip() else "指定なし"
+        story.append(Paragraph(f"{escape(label)}：{escape(shown)}", small_style))
+
+    story.append(Spacer(1, 5 * mm))
+
+    for index, recipe in enumerate(recipe_set.recipes, start=1):
+        story.append(Paragraph(f"レシピ{index}：{escape(recipe.recipe_name)}", heading_style))
+        story.append(Paragraph(f"特徴：{escape(recipe.feature)}", body_style))
+        story.append(Paragraph(f"調理時間：{escape(recipe.cooking_time)}", body_style))
+        story.append(Paragraph(f"エネルギー（1人分・概算）：{escape(recipe.energy)}", body_style))
+        story.append(Paragraph(f"食塩相当量（1人分・概算）：{escape(recipe.salt_equivalent)}", body_style))
+
+        story.append(Paragraph("材料", body_style))
+        for item in recipe.ingredients:
+            story.append(Paragraph(f"・{escape(item)}", small_style))
+
+        story.append(Paragraph("調味料", body_style))
+        for item in recipe.seasonings:
+            story.append(Paragraph(f"・{escape(item)}", small_style))
+
+        story.append(Paragraph("作り方", body_style))
+        for step_number, step in enumerate(recipe.steps, start=1):
+            story.append(Paragraph(f"{step_number}. {escape(step)}", small_style))
+
+        story.append(Spacer(1, 4 * mm))
+
+    story.append(Paragraph("5つのレシピの違い", heading_style))
+    cleaned = clean_markdown(analysis_text)
+    for paragraph in cleaned.split("\n"):
+        if paragraph.strip():
+            story.append(Paragraph(escape(paragraph.strip()), body_style))
+
+    story.append(Spacer(1, 4 * mm))
+    story.append(
+        Paragraph(
+            "※エネルギー量と食塩相当量はAIによる概算値です。正確な栄養計算が必要な場合は、食品成分表等を用いて別途計算してください。",
+            small_style,
+        )
+    )
+
+    doc.build(story)
+    return buffer.getvalue()
 
 
 st.set_page_config(page_title="AIレシピ比較メーカー", page_icon="🍳")
@@ -211,6 +329,33 @@ if st.button("5つのレシピを比較する", type="primary"):
         st.divider()
         st.header("5つのレシピの違い")
         st.markdown(analysis_response.output_text)
+
+        conditions = {
+            "使いたくない材料": avoid_ingredients,
+            "必ず使いたい材料": must_ingredients,
+            "味の好み": taste_preference,
+            "調理時間": cooking_time,
+            "調理法": cooking_method,
+            "その他の条件": additional_conditions,
+        }
+
+        pdf_bytes = build_pdf(
+            dish_name=dish_name,
+            recipe_set=recipe_set,
+            analysis_text=analysis_response.output_text,
+            conditions=conditions,
+        )
+
+        st.divider()
+        st.subheader("PDFで保存")
+        st.write("生成した5つのレシピと比較結果を、A4縦のPDFにまとめて保存できます。")
+        st.download_button(
+            label="📄 PDFをダウンロード",
+            data=pdf_bytes,
+            file_name=f"{dish_name}_5レシピ比較.pdf",
+            mime="application/pdf",
+            type="primary",
+        )
 
     except KeyError:
         st.error(
