@@ -10,10 +10,26 @@ class Recipe(BaseModel):
     seasonings: list[str]
     steps: list[str]
     cooking_time: str
+    energy: str
+    salt_equivalent: str
 
 
 class RecipeSet(BaseModel):
     recipes: list[Recipe]
+
+
+BASE_PROMPT = """
+あなたは家庭料理に詳しい料理研究家です。
+
+以下のルールを必ず守ってください。
+
+・化学調味料は使わない
+・顆粒だし、油、マヨネーズ、めんつゆ、卵黄、ツナは使わない
+・家庭のスーパーで買える材料を使う
+・基本は2人分
+・調味料の分量は具体的に書く
+・初心者でも作れる手順にする
+"""
 
 
 st.set_page_config(page_title="AIレシピ比較メーカー", page_icon="🍳")
@@ -72,7 +88,8 @@ if st.button("5つのレシピを比較する", type="primary"):
         client = genai.Client(api_key=api_key)
 
         recipe_prompt = f"""
-あなたは家庭料理に詳しい料理研究家です。
+{BASE_PROMPT}
+
 「{dish_name}」について、特徴がはっきり異なるレシピを必ず5種類作ってください。
 
 今回の追加条件は以下です。
@@ -108,9 +125,12 @@ if st.button("5つのレシピを比較する", type="primary"):
 ・調味料
 ・作り方
 ・調理時間
+・1人分あたりのエネルギー量（kcal）の概算
+・1人分あたりの食塩相当量（g）の概算
 
 材料と調味料には、家庭で再現できる具体的な分量を入れてください。
 作り方は、初心者でも分かる順番で書いてください。
+エネルギー量と食塩相当量は、材料と調味料の分量をもとに1人分として概算してください。
 必ず5レシピだけを返してください。
 """
 
@@ -140,6 +160,8 @@ if st.button("5つのレシピを比較する", type="primary"):
                 st.markdown(f"### レシピ{index}：{recipe.recipe_name}")
                 st.markdown(f"**特徴**  \n{recipe.feature}")
                 st.markdown(f"**調理時間**  \n{recipe.cooking_time}")
+                st.markdown(f"**エネルギー（1人分・概算）**  \n{recipe.energy}")
+                st.markdown(f"**食塩相当量（1人分・概算）**  \n{recipe.salt_equivalent}")
 
                 st.markdown("**材料**")
                 for item in recipe.ingredients:
@@ -170,6 +192,8 @@ if st.button("5つのレシピを比較する", type="primary"):
 ・味の方向性
 ・調理方法の違い
 ・調理時間
+・エネルギー量
+・食塩相当量
 ・それぞれどんな人に向いているか
 
 最後に、5種類の特徴を短く一覧でまとめてください。
