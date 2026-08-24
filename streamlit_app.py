@@ -55,6 +55,12 @@ cooking_method = st.text_input(
     placeholder="例：鍋で煮る、フライパンだけ、電子レンジ不可",
 )
 
+additional_conditions = st.text_area(
+    "6. その他の条件（自由記述）",
+    placeholder="例：長芋は必ず可食部で150g使う。2人分にする。薄口しょうゆを使う。",
+    height=120,
+)
+
 
 if st.button("5つのレシピを比較する", type="primary"):
     if not dish_name.strip():
@@ -75,12 +81,15 @@ if st.button("5つのレシピを比較する", type="primary"):
 ・味の好み：{taste_preference if taste_preference else "指定なし"}
 ・調理時間：{cooking_time if cooking_time else "指定なし"}
 ・調理法：{cooking_method if cooking_method else "指定なし"}
+・その他の条件：{additional_conditions if additional_conditions else "指定なし"}
 
 条件の扱いについて、以下を必ず守ってください。
 ・「使いたくない材料」に指定されたものは、材料・調味料・だし・トッピングを含めて使用しないでください。
 ・「必ず使いたい材料」に指定されたものは、原則として5種類すべてのレシピで使用してください。
 ・味の好み、調理時間、調理法の指定がある場合は、5種類すべてでその条件を守ってください。
-・条件同士が矛盾する場合は、無理にレシピを作らず、できるだけ条件に近づけてください。
+・「その他の条件」に書かれた内容は、数量、可食部重量、食材、調味料、人数、調理手順などを含め、具体的な指定として最優先で守ってください。
+・「その他の条件」と他の条件が重複する場合は、「その他の条件」を優先してください。
+・条件同士が矛盾する場合は、可能な範囲で最も具体的な条件を優先してください。
 
 5種類は、できるだけ次のように方向性を変えてください。
 1. 定番
@@ -153,6 +162,7 @@ if st.button("5つのレシピを比較する", type="primary"):
 ・味の好み：{taste_preference if taste_preference else "指定なし"}
 ・調理時間：{cooking_time if cooking_time else "指定なし"}
 ・調理法：{cooking_method if cooking_method else "指定なし"}
+・その他の条件：{additional_conditions if additional_conditions else "指定なし"}
 
 以下の観点で、初心者にも分かる日本語で整理してください。
 ・主な材料の違い
